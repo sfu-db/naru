@@ -13,6 +13,7 @@ import torch
 
 import common
 import datasets
+import queries
 import estimators as estimators_lib
 import made
 import transformer
@@ -32,6 +33,7 @@ parser.add_argument('--inference-opts',
 
 parser.add_argument('--num-queries', type=int, default=20, help='# queries.')
 parser.add_argument('--dataset', type=str, default='dmv-tiny', help='Dataset.')
+parser.add_argument('--query', type=str, default='forest-tiny', help='Query file.')
 parser.add_argument('--err-csv',
                     type=str,
                     default='results.csv',
@@ -150,11 +152,13 @@ def InvertOrder(order):
 
 
 def MakeTable():
-    assert args.dataset in ['dmv-tiny', 'dmv']
+    assert args.dataset in ['dmv-tiny', 'dmv', 'forest']
     if args.dataset == 'dmv-tiny':
         table = datasets.LoadDmv('dmv-tiny.csv')
     elif args.dataset == 'dmv':
         table = datasets.LoadDmv()
+    elif args.dataset == 'forest':
+        table = datasets.LoadForest()
 
     oracle_est = estimators_lib.Oracle(table)
     if args.run_bn:
@@ -216,6 +220,15 @@ def GenerateQuery(all_cols, rng, table, return_col_idx=False):
                                             return_col_idx=return_col_idx)
     return cols, ops, vals
 
+def GenerateQueryFromFile(filename):
+    """Generate queries from file"""
+    assert args.query in ['forest', 'forest-tiny']
+    if args.query == 'forest':
+        return queries.LoadForestQueries()
+    elif args.query == 'forest-tiny':
+        return queries.LoadForestQueries('forest-tiny.csv')
+
+    return None
 
 def Query(estimators,
           do_print=True,
@@ -299,6 +312,23 @@ def RunN(table,
         max_err = ReportEsts(estimators)
     return False
 
+def RunQueryFile(table,
+                 estimators,
+                 log_every=50,
+                 oracle_cards=None,
+                 oracle_est=None):
+    queries = GenerateQueryFromFile(args.query)
+    for query in queries:
+        col_idxs, ops, vals = query
+        assert len(col_idxs) == len(ops) == len(vals)
+        Query(estimators,
+              True,
+              oracle_card=None,
+              query=(np.take(table.columns, col_idxs), ops, vals),
+              table=table,
+              oracle_est=oracle_est)
+        max_err = ReportEsts(estimators)
+    return False
 
 def RunNParallel(estimator_factory,
                  parallelism=2,
@@ -587,15 +617,18 @@ def Main():
         # Other estimators can be appended as well.
 
         if len(estimators):
-            RunN(table,
-                 cols_to_train,
-                 estimators,
-                 rng=np.random.RandomState(1234),
-                 num=args.num_queries,
-                 log_every=1,
-                 num_filters=None,
-                 oracle_cards=oracle_cards,
-                 oracle_est=oracle_est)
+            RunQueryFile(table,
+                         estimators,
+                         oracle_est=oracle_est)
+            #  RunN(table,
+            #       cols_to_train,
+            #       estimators,
+            #       rng=np.random.RandomState(1234),
+            #       num=args.num_queries,
+            #       log_every=1,
+            #       num_filters=None,
+            #       oracle_cards=oracle_cards,
+            #       oracle_est=oracle_est)
 
     SaveEstimators(args.err_csv, estimators)
     print('...Done, result:', args.err_csv)
