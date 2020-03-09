@@ -331,11 +331,13 @@ def TrainTask(seed=0):
     torch.manual_seed(0)
     np.random.seed(0)
 
-    assert args.dataset in ['dmv-tiny', 'dmv']
+    assert args.dataset in ['dmv-tiny', 'dmv', 'forest']
     if args.dataset == 'dmv-tiny':
         table = datasets.LoadDmv('dmv-tiny.csv')
     elif args.dataset == 'dmv':
         table = datasets.LoadDmv()
+    elif args.dataset == 'forest':
+        table = datasets.LoadForest()
 
     table_bits = Entropy(
         table,
@@ -356,7 +358,7 @@ def TrainTask(seed=0):
                                 fixed_ordering=fixed_ordering,
                                 seed=seed)
     else:
-        if args.dataset in ['dmv-tiny', 'dmv']:
+        if args.dataset in ['dmv-tiny', 'dmv', 'forest']:
             model = MakeMade(
                 scale=args.fc_hiddens,
                 cols_to_train=table.columns,
@@ -383,7 +385,7 @@ def TrainTask(seed=0):
         opt = torch.optim.Adam(list(model.parameters()), 2e-4)
 
     bs = args.bs
-    log_every = 200
+    log_every = 5
 
     train_data = common.TableDataset(table_train)
 
