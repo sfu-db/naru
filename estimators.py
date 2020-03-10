@@ -102,7 +102,12 @@ def QueryToPredicate(columns, operators, vals, wrap_as_string_cols=None):
         str(v).replace('T', ' ') if type(v) is np.datetime64 else v
         for v in vals
     ]
-    v_s = ["\'" + v + "\'" if type(v) is str else str(v) for v in v_s]
+
+    def tuple_to_string(v):
+        return tuple("\'" + t + "\'" if type(t) is str else str(t) for t in v)
+
+    v_s = ["\'" + v + "\'" if type(v) is str
+           else (tuple_to_string(v) if type(v) is tuple else str(v)) for v in v_s]
 
     if wrap_as_string_cols is not None:
         for i in range(len(columns)):
@@ -110,7 +115,8 @@ def QueryToPredicate(columns, operators, vals, wrap_as_string_cols=None):
                 v_s[i] = "'" + str(v_s[i]) + "'"
 
     preds = [
-        c.pg_name + ' ' + o + ' ' + v
+        c.pg_name + ' ' + o + ' ' + v if o != '[]'
+        else '({} between {} and {})'.format(c.pg_name, v[0], v[1])
         for c, o, v in zip(columns, operators, v_s)
     ]
     s = ' and '.join(preds)
@@ -125,7 +131,6 @@ def FillInUnqueriedColumns(table, columns, operators, vals):
 
     A None in ops/vals means that column slot is unqueried.
     """
-    # TODO: need to modify for supporting closed-form range queries
     ncols = len(table.columns)
     cs = table.columns
     os, vs = [None] * ncols, [None] * ncols
@@ -657,7 +662,7 @@ class Postgres(CardEst):
         pred = QueryToPredicate(columns, operators, vals)
         # Use json so it's easier to parse.
         query_s = 'explain(format json) select * from ' + self.relation + pred
-        #  print(query_s)
+        print(query_s)
         self.OnStart()
         self.cursor.execute(query_s)
         res = self.cursor.fetchall()
