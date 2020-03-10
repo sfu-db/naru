@@ -1,13 +1,11 @@
 """Query Formalization"""
 import os
 import csv
-import numpy as np
 
-QUERY_PATH = '/var/tmp/cardDB/query'
+DATA_PATH = '/var/tmp/cardDB/data'
 
 def ParseInteger(lrange, rrange):
     assert lrange != 'MAX' and rrange != 'MIN'
-
     if lrange == 'MIN' and rrange == 'MAX':
         return None
     elif lrange == 'MIN':
@@ -16,11 +14,14 @@ def ParseInteger(lrange, rrange):
         return ['>='], [int(float(lrange))]
     elif lrange == rrange:
         return ['='], [int(float(lrange))]
-    else:
-        return ['>=', '<='], [int(float(lrange)), int(float(rrange))]
+    lrange = int(float(lrange))
+    rrange = int(float(rrange))
+    assert lrange < rrange
+    return ['>=', '<='], [lrange, rrange]
 
-def LoadForestQueries(filename='forest.csv'):
-    csv_file = os.path.join(QUERY_PATH, filename)
+def LoadForestQueries(filename='query'):
+    csv_file = os.path.join(DATA_PATH, 'forest', '{}.csv'.format(filename))
+    print('load from query file: {}'.format(csv_file))
     num_attr = 10
     queries = []
 
@@ -43,6 +44,8 @@ def LoadForestQueries(filename='forest.csv'):
                     ops += t_ops
                     vals += t_vals
             queries.append((col_idxs, ops, vals))
+
+    print('{} queries in total'.format(len(queries)))
 
     return queries
 

@@ -21,8 +21,8 @@ def LoadDmv(filename='Vehicle__Snowmobile__and_Boat_Registrations.csv'):
     type_casts = {'Reg Valid Date': np.datetime64}
     return common.CsvTable('DMV', csv_file, cols, type_casts)
 
-def LoadForest(filename='forest_num.csv'):
-    csv_file = os.path.join(DATA_PATH, filename)
+def LoadForest(filename='num.csv'):
+    csv_file = os.path.join(DATA_PATH, 'forest', filename)
     cols = ['Elevation', 'Aspect', 'Slope',
             'Horizontal_Distance_To_Hydrology', 'Vertical_Distance_To_Hydrology',
             'Horizontal_Distance_To_Roadways', 'Hillshade_9am',

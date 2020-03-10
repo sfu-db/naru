@@ -119,6 +119,7 @@ def FillInUnqueriedColumns(table, columns, operators, vals):
 
     A None in ops/vals means that column slot is unqueried.
     """
+    # TODO: need to modify for supporting closed-form range queries
     ncols = len(table.columns)
     cs = table.columns
     os, vs = [None] * ncols, [None] * ncols
@@ -632,7 +633,7 @@ class Postgres(CardEst):
 
         super(Postgres, self).__init__()
 
-        self.conn = psycopg2.connect(database=database, port=port)
+        self.conn = psycopg2.connect(database=database, port=port, user='card', password='card', host='localhost')
         self.conn.autocommit = True
         self.cursor = self.conn.cursor()
 
@@ -650,11 +651,11 @@ class Postgres(CardEst):
         pred = QueryToPredicate(columns, operators, vals)
         # Use json so it's easier to parse.
         query_s = 'explain(format json) select * from ' + self.relation + pred
-        # print(query_s)
+        #  print(query_s)
         self.OnStart()
         self.cursor.execute(query_s)
         res = self.cursor.fetchall()
-        # print(res)
+        #  print(res)
         result = res[0][0][0]['Plan']['Plan Rows']
         self.OnEnd()
         return result
@@ -1086,7 +1087,9 @@ class MaxDiffHistogram(CardEst):
             if not self.table.columns[cid].data.dtype == 'int64':
                 p.col_value_list[cid] = self.table_ds.tuples_np[:, cid]
             else:
-                p.col_value_list[cid] = self.table.columns[cid].data[:, cid]
+                # NOTICE: there is a bug in the original code here
+                #  p.col_value_list[cid] = self.table.columns[cid].data[:, cid]
+                p.col_value_list[cid] = self.table.columns[cid].data.values
         p.rowid_to_position = list(np.arange(num_rows))
         self.partition_to_maxdiff[p] = set()
         self._compute_maxdiff(p)

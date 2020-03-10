@@ -33,7 +33,7 @@ parser.add_argument('--inference-opts',
 
 parser.add_argument('--num-queries', type=int, default=20, help='# queries.')
 parser.add_argument('--dataset', type=str, default='dmv-tiny', help='Dataset.')
-parser.add_argument('--query', type=str, default='forest-tiny', help='Query file.')
+parser.add_argument('--query', type=str, default='query', help='Query file.')
 parser.add_argument('--err-csv',
                     type=str,
                     default='results.csv',
@@ -109,6 +109,9 @@ parser.add_argument('--transformer-act',
                     help='Transformer activation.')
 
 # Estimators to enable.
+parser.add_argument('--run-postgres',
+                    action='store_true',
+                    help='Get estimated result from Postgres')
 parser.add_argument('--run-sampling',
                     action='store_true',
                     help='Run a materialized sampler?')
@@ -222,11 +225,9 @@ def GenerateQuery(all_cols, rng, table, return_col_idx=False):
 
 def GenerateQueryFromFile(filename):
     """Generate queries from file"""
-    assert args.query in ['forest', 'forest-tiny']
-    if args.query == 'forest':
-        return queries.LoadForestQueries()
-    elif args.query == 'forest-tiny':
-        return queries.LoadForestQueries('forest-tiny.csv')
+    assert args.dataset in ['forest']
+    if args.dataset == 'forest':
+        return queries.LoadForestQueries(args.query)
 
     return None
 
@@ -546,7 +547,7 @@ def Main():
                                     fixed_ordering=order,
                                     seed=seed)
         else:
-            if args.dataset in ['dmv-tiny', 'dmv']:
+            if args.dataset in ['dmv-tiny', 'dmv', 'forest']:
                 model = MakeMade(
                     scale=args.fc_hiddens,
                     cols_to_train=table.columns,
@@ -613,6 +614,12 @@ def Main():
         if args.run_maxdiff:
             estimators.append(
                 estimators_lib.MaxDiffHistogram(table, args.maxdiff_limit))
+
+        if args.run_postgres:
+            assert args.dataset in ['forest']
+            if args.dataset == 'forest':
+                estimators.append(
+                    estimators_lib.Postgres('card', 'forest_data_orginal', 6666))
 
         # Other estimators can be appended as well.
 
