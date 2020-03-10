@@ -68,6 +68,7 @@ parser.add_argument(
     default='one_hot',
     help='Iutput encoding for MADE/ResMADE, {one_hot, embed}.  If embed, '
     'then input encoding should be set to embed as well.')
+parser.add_argument('--embed-size', type=int, default=8, help='Size of embedding.')
 
 # Transformer.
 parser.add_argument(
@@ -291,7 +292,8 @@ def MakeMade(scale, cols_to_train, seed, fixed_ordering=None):
         input_bins=[c.DistributionSize() for c in cols_to_train],
         input_encoding=args.input_encoding,
         output_encoding=args.output_encoding,
-        embed_size=32,
+        #  embed_size=32,
+        embed_size=args.embed_size,
         seed=seed,
         do_direct_io_connections=args.direct_io,
         natural_ordering=False if seed is not None and seed != 0 else True,

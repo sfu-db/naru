@@ -63,6 +63,7 @@ parser.add_argument('--fc-hiddens',
                     type=int,
                     default=128,
                     help='Hidden units in FC.')
+parser.add_argument('--embed-size', type=int, default=8, help='Size of embedding.')
 parser.add_argument('--layers', type=int, default=4, help='# layers in FC.')
 parser.add_argument('--residual', action='store_true', help='ResMade?')
 parser.add_argument('--direct-io', action='store_true', help='Do direct IO?')
@@ -438,7 +439,8 @@ def MakeMade(scale, cols_to_train, seed, fixed_ordering=None):
         input_bins=[c.DistributionSize() for c in cols_to_train],
         input_encoding=args.input_encoding,
         output_encoding=args.output_encoding,
-        embed_size=32,
+        #  embed_size=32,
+        embed_size=args.embed_size,
         seed=seed,
         do_direct_io_connections=args.direct_io,
         natural_ordering=False if seed is not None and seed != 0 else True,
