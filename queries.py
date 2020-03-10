@@ -9,15 +9,15 @@ def ParseInteger(lrange, rrange):
     if lrange == 'MIN' and rrange == 'MAX':
         return None
     elif lrange == 'MIN':
-        return ['<='], [int(float(rrange))]
+        return '<=', int(float(rrange))
     elif rrange == 'MAX':
-        return ['>='], [int(float(lrange))]
+        return '>=', int(float(lrange))
     elif lrange == rrange:
-        return ['='], [int(float(lrange))]
+        return '=', int(float(lrange))
     lrange = int(float(lrange))
     rrange = int(float(rrange))
     assert lrange < rrange
-    return ['>=', '<='], [lrange, rrange]
+    return '[]', (lrange, rrange)
 
 def LoadForestQueries(filename='query'):
     csv_file = os.path.join(DATA_PATH, 'forest', '{}.csv'.format(filename))
@@ -38,11 +38,10 @@ def LoadForestQueries(filename='query'):
                 if parsed is None:
                     continue
                 else:
-                    t_ops, t_vals = parsed
-                    assert len(t_ops) == len(t_vals)
-                    col_idxs += [i] * len(t_ops)
-                    ops += t_ops
-                    vals += t_vals
+                    t_op, t_val = parsed
+                    col_idxs.append(i)
+                    ops.append(t_op)
+                    vals.append(t_val)
             queries.append((col_idxs, ops, vals))
 
     print('{} queries in total'.format(len(queries)))

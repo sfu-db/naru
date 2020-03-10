@@ -17,12 +17,18 @@ import common
 import made
 import transformer
 
+def in_between(data, val):
+    assert len(val) == 2
+    lrange, rrange = val
+    return (data >= lrange) & (data <= rrange)
+
 OPS = {
     '>': np.greater,
     '<': np.less,
     '>=': np.greater_equal,
     '<=': np.less_equal,
-    '=': np.equal
+    '=': np.equal,
+    '[]': in_between
 }
 
 
