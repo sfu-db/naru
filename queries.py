@@ -28,7 +28,7 @@ def LoadForestQueries(filename='query'):
     with open(csv_file, 'r') as infile:
         reader = csv.reader(infile, delimiter=',', quotechar='|')
         for query in reader:
-            print(query)
+            #  print(query)
             col_idxs = []
             ops = []
             vals = []

@@ -644,6 +644,8 @@ class Postgres(CardEst):
 
         super(Postgres, self).__init__()
 
+        self.name = 'postgres'
+
         self.conn = psycopg2.connect(database=database, port=port, user='card', password='card', host='localhost')
         self.conn.autocommit = True
         self.cursor = self.conn.cursor()
@@ -662,7 +664,7 @@ class Postgres(CardEst):
         pred = QueryToPredicate(columns, operators, vals)
         # Use json so it's easier to parse.
         query_s = 'explain(format json) select * from ' + self.relation + pred
-        print(query_s)
+        #  print(query_s)
         self.OnStart()
         self.cursor.execute(query_s)
         res = self.cursor.fetchall()

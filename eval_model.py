@@ -253,10 +253,10 @@ def Query(estimators,
     if card == 0:
         return
 
-    pprint('Q(', end='')
-    for c, o, v in zip(cols, ops, vals):
-        pprint('{} {} {}, '.format(c.name, o, str(v)), end='')
-    pprint('): ', end='')
+    #  pprint('Q(', end='')
+    #  for c, o, v in zip(cols, ops, vals):
+    #      pprint('{} {} {}, '.format(c.name, o, str(v)), end='')
+    #  pprint('): ', end='')
 
     pprint('\n  actual {} ({:.3f}%) '.format(card,
                                              card / table.cardinality * 100),
