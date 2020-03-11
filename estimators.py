@@ -1058,8 +1058,12 @@ class MaxDiffHistogram(CardEst):
             total_size = 0
             for _ in self.uniform_spreads:
                 total_size += (4 * len(_))
+            # add density
             total_size += 4
             return total_size
+
+        def __str__(self):
+            return '{}'.format(self.boundaries)
 
     def _compute_maxdiff(self, partition):
         for col in range(len(partition.boundaries)):
@@ -1068,6 +1072,7 @@ class MaxDiffHistogram(CardEst):
             counter = pd.Series(vals).value_counts().sort_index()
 
             # compute Diff(V, A)
+            # TODO: too many recomputations
             spread = counter.index[1:] - counter.index[:-1]
             spread_m_counts = spread * counter.iloc[:-1]
             maxdiff = 0
@@ -1329,11 +1334,12 @@ class MaxDiffHistogram(CardEst):
                     self.column_bound_map[cid]['u'][self.column_bound_index[cid]
                                                     ['u'][i]])
         else:
-            assert o == '=', o
+            assert o in ['=', '[]'], o
+            lower_v, upper_v = v if type(v) is tuple else (v, v)
             lower_bound_set = set()
-            insert_index = bisect.bisect(self.column_bound_index[cid]['l'], v)
+            insert_index = bisect.bisect(self.column_bound_index[cid]['l'], upper_v)
             for i in range(insert_index):
-                if self.column_bound_index[cid]['l'][i] == v:
+                if self.column_bound_index[cid]['l'][i] == upper_v:
                     for pid in self.column_bound_map[cid]['l'][v]:
                         if self.partitions[pid].boundaries[cid][2]:
                             # add only when the lower bound is inclusive
@@ -1344,8 +1350,7 @@ class MaxDiffHistogram(CardEst):
                             self.column_bound_index[cid]['l'][i]])
 
             upper_bound_set = set()
-            insert_index = bisect.bisect_left(self.column_bound_index[cid]['u'],
-                                              v)
+            insert_index = bisect.bisect_left(self.column_bound_index[cid]['u'], lower_v)
             for i in range(insert_index,
                            len(self.column_bound_index[cid]['u'])):
                 upper_bound_set = upper_bound_set.union(
@@ -1377,8 +1382,13 @@ class MaxDiffHistogram(CardEst):
                 else:
                     distinct_val_covered = distinct_val_covered * (
                         len(spread) - bisect.bisect_left(spread, v))
+            elif o == '[]':
+                assert type(v) is tuple, v
+                distinct_val_covered = distinct_val_covered * (
+                    bisect.bisect(spread, v[1]) - bisect.bisect_left(spread, v[0]))
             else:
                 assert o == '=', o
+                # NOTE: tend underestimate the result since spread values are not truely existing values
                 if not v in spread:
                     distinct_val_covered = 0
         for cid in range(len(partition.uniform_spreads)):

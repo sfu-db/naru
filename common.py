@@ -58,11 +58,20 @@ class Column(object):
 
     def ValToBin(self, val):
         if isinstance(self.all_distinct_values, list):
-            return self.all_distinct_values.index(val)
-        inds = np.where(self.all_distinct_values == val)
-        assert len(inds[0]) > 0, val
-
-        return inds[0][0]
+            if type(val) is not tuple:
+                return self.all_distinct_values.index(val)
+            else:
+                return tuple(self.all_distinct_values.index(v) for v in val)
+        if type(val) is not tuple:
+            inds = np.where(self.all_distinct_values == val)
+            assert len(inds[0]) > 0, val
+            return inds[0][0]
+        bins = []
+        for v in val:
+            inds = np.where(self.all_distinct_values == val)
+            assert len(inds[0]) > 0, val
+            bins.append(inds[0][0])
+        return tuple(bins)
 
     def SetDistribution(self, distinct_values):
         """This is all the values this column will ever see."""

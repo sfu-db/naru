@@ -261,7 +261,7 @@ def ReportModel(model, blacklist=None):
             ps.append(np.prod(p.size()))
     num_params = sum(ps)
     mb = num_params * 4 / 1024 / 1024
-    print('Number of model parameters: {} (~= {:.1f}MB)'.format(num_params, mb))
+    print('Number of model parameters: {} (~= {:.2f}MB)'.format(num_params, mb))
     print(model)
     return mb
 
@@ -430,7 +430,7 @@ def TrainTask(seed=0):
 
     if fixed_ordering is None:
         if seed is not None:
-            PATH = 'models/{}-{:.1f}MB-model{:.3f}-data{:.3f}-{}-{}epochs-seed{}.pt'.format(
+            PATH = 'models/{}-{:.2f}MB-model{:.3f}-data{:.3f}-{}-{}epochs-seed{}.pt'.format(
                 args.dataset, mb, model.model_bits, table_bits, model.name(),
                 args.epochs, seed)
         else:

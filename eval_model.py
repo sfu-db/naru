@@ -33,7 +33,7 @@ parser.add_argument('--inference-opts',
 
 parser.add_argument('--num-queries', type=int, default=20, help='# queries.')
 parser.add_argument('--dataset', type=str, default='dmv-tiny', help='Dataset.')
-parser.add_argument('--query', type=str, default='query', help='Query file.')
+parser.add_argument('--query', type=str, default='auto', help='Query file.')
 parser.add_argument('--err-csv',
                     type=str,
                     default='results.csv',
@@ -332,6 +332,69 @@ def RunQueryFile(table,
         max_err = ReportEsts(estimators)
     return False
 
+def RunQueryFileParallel(estimator_factory,
+                         parallelism=2,
+                         oracle_cards=None):
+    """RunN in parallel with Ray.  Useful for slow estimators e.g., BN."""
+    import ray
+    ray.init(redis_password='xxx')
+
+    @ray.remote
+    class Worker(object):
+
+        def __init__(self, i):
+            self.estimators, self.table, self.oracle_est = estimator_factory()
+            self.columns = np.asarray(self.table.columns)
+            self.i = i
+
+        def run_query(self, query, j):
+            col_idxs, ops, vals = pickle.loads(query)
+            Query(self.estimators,
+                  do_print=True,
+                  oracle_card=oracle_cards[j]
+                  if oracle_cards is not None else None,
+                  query=(self.columns[col_idxs], ops, vals),
+                  table=self.table,
+                  oracle_est=self.oracle_est)
+
+            print('=== Worker {}, Query {} ==='.format(self.i, j))
+            for est in self.estimators:
+                est.report()
+
+        def get_stats(self):
+            return [e.get_stats() for e in self.estimators]
+
+    print('Building estimators on {} workers'.format(parallelism))
+    workers = []
+    for i in range(parallelism):
+        workers.append(Worker.remote(i))
+
+    print('Building estimators on driver')
+    estimators, table, _ = estimator_factory()
+    cols = table.columns
+
+    queries = GenerateQueryFromFile(args.query)
+
+    for i in range(len(queries)):
+        query = queries[i]
+        print('Queueing execution of query', i)
+        workers[i % parallelism].run_query.remote(pickle.dumps(query), i)
+
+    print('Waiting for queries to finish')
+    stats = ray.get([w.get_stats.remote() for w in workers])
+
+    print('Merging and printing final results')
+    for stat_set in stats:
+        for e, s in zip(estimators, stat_set):
+            e.merge_stats(s)
+    time.sleep(1)
+
+    print('=== Merged stats ===')
+    for est in estimators:
+        est.report()
+    return estimators
+
+
 def RunNParallel(estimator_factory,
                  parallelism=2,
                  rng=None,
@@ -475,7 +538,7 @@ def ReportModel(model, blacklist=None):
             ps.append(np.prod(p.size()))
     num_params = sum(ps)
     mb = num_params * 4 / 1024 / 1024
-    print('Number of model parameters: {} (~= {:.1f}MB)'.format(num_params, mb))
+    print('Number of model parameters: {} (~= {:.2f}MB)'.format(num_params, mb))
     print(model)
     return mb
 
@@ -577,12 +640,17 @@ def Main():
 
     # Estimators to run.
     if args.run_bn:
-        estimators = RunNParallel(estimator_factory=MakeBnEstimators,
-                                  parallelism=50,
-                                  rng=np.random.RandomState(1234),
-                                  num=args.num_queries,
-                                  num_filters=None,
-                                  oracle_cards=oracle_cards)
+        if args.query == 'auto':
+            estimators = RunNParallel(estimator_factory=MakeBnEstimators,
+                                      parallelism=50,
+                                      rng=np.random.RandomState(1234),
+                                      num=args.num_queries,
+                                      num_filters=None,
+                                      oracle_cards=oracle_cards)
+        else:
+            estimators = RunQueryFileParallel(estimator_factory=MakeBnEstimators,
+                                              parallelism=50,
+                                              oracle_cards=oracle_cards)
     else:
         estimators = [
             estimators_lib.ProgressiveSampling(c.loaded_model,
@@ -609,35 +677,38 @@ def Main():
                     est.model.forward_with_encoded_input, encoded_input)
 
         if args.run_sampling:
-            SAMPLE_RATIO = {'dmv': [0.0013]}  # ~1.3MB.
+            SAMPLE_RATIO = {'dmv': [0.0013], 'forest': [0.025]}  # ~1.3MB for dmv. ~0.3MB for forest
             for p in SAMPLE_RATIO.get(args.dataset, [0.01]):
                 estimators.append(estimators_lib.Sampling(table, p=p))
 
         if args.run_maxdiff:
             estimators.append(
                 estimators_lib.MaxDiffHistogram(table, args.maxdiff_limit))
+            print('MaxDiffHistogramSize: {:.2f}MB'.format(estimators[-1].Size() / 1024 / 1024))
 
         if args.run_postgres:
             assert args.dataset in ['forest']
             if args.dataset == 'forest':
                 estimators.append(
-                    estimators_lib.Postgres('card', 'forest_data_orginal', 6666))
+                    estimators_lib.Postgres('card', 'forest_num', 6666))
 
         # Other estimators can be appended as well.
 
         if len(estimators):
-            RunQueryFile(table,
-                         estimators,
-                         oracle_est=oracle_est)
-            #  RunN(table,
-            #       cols_to_train,
-            #       estimators,
-            #       rng=np.random.RandomState(1234),
-            #       num=args.num_queries,
-            #       log_every=1,
-            #       num_filters=None,
-            #       oracle_cards=oracle_cards,
-            #       oracle_est=oracle_est)
+            if args.query == 'auto':
+                RunN(table,
+                     cols_to_train,
+                     estimators,
+                     rng=np.random.RandomState(1234),
+                     num=args.num_queries,
+                     log_every=1,
+                     num_filters=None,
+                     oracle_cards=oracle_cards,
+                     oracle_est=oracle_est)
+            else:
+                RunQueryFile(table,
+                             estimators,
+                             oracle_est=oracle_est)
 
     SaveEstimators(args.err_csv, estimators)
     print('...Done, result:', args.err_csv)
