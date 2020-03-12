@@ -110,6 +110,9 @@ parser.add_argument('--transformer-act',
                     help='Transformer activation.')
 
 # Estimators to enable.
+parser.add_argument('--run-kde',
+                    action='store_true',
+                    help='Get estimated result from compiled Postgres with kde')
 parser.add_argument('--run-postgres',
                     action='store_true',
                     help='Get estimated result from Postgres')
@@ -241,6 +244,8 @@ def Query(estimators,
     assert query is not None
     cols, ops, vals = query
 
+    #  print(query)
+
     ### Actually estimate the query.
 
     def pprint(*args, **kwargs):
@@ -250,8 +255,8 @@ def Query(estimators,
     # Actual.
     card = oracle_est.Query(cols, ops,
                             vals) if oracle_card is None else oracle_card
-    if card == 0:
-        return
+    #  if card == 0:
+    #      return
 
     #  pprint('Q(', end='')
     #  for c, o, v in zip(cols, ops, vals):
@@ -273,6 +278,8 @@ def Query(estimators,
 def ReportEsts(estimators):
     v = -1
     for est in estimators:
+        print(est.name)
+        print(np.max(est.errs))
         print(est.name, 'max', np.max(est.errs), '99th',
               np.quantile(est.errs, 0.99), '95th', np.quantile(est.errs, 0.95),
               'median', np.quantile(est.errs, 0.5))
@@ -677,7 +684,7 @@ def Main():
                     est.model.forward_with_encoded_input, encoded_input)
 
         if args.run_sampling:
-            SAMPLE_RATIO = {'dmv': [0.0013], 'forest': [0.025]}  # ~1.3MB for dmv. ~0.3MB for forest
+            SAMPLE_RATIO = {'dmv': [0.0013], 'forest': [0.01]}  # ~1.3MB for dmv. ~0.12MB for forest
             for p in SAMPLE_RATIO.get(args.dataset, [0.01]):
                 estimators.append(estimators_lib.Sampling(table, p=p))
 
@@ -691,6 +698,15 @@ def Main():
             if args.dataset == 'forest':
                 estimators.append(
                     estimators_lib.Postgres('card', 'forest_num', 6666))
+
+        if args.run_kde:
+            assert args.dataset in ['forest']
+            if args.dataset == 'forest':
+                configs = {'ocl_use_gpu': 'true',
+                          'kde_estimation_quality_logfile': '\'/var/tmp/cardDB/kde/data/kdelog.txt\'',
+                          'kde_enable': 'true',
+                          'kde_samplesize': '2905'}
+                estimators.append(estimators_lib.Postgres('card', 'forest_num', port=6667, version='kde', configs=configs))
 
         # Other estimators can be appended as well.
 

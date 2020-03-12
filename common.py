@@ -68,8 +68,8 @@ class Column(object):
             return inds[0][0]
         bins = []
         for v in val:
-            inds = np.where(self.all_distinct_values == val)
-            assert len(inds[0]) > 0, val
+            inds = np.where(self.all_distinct_values == v)
+            assert len(inds[0]) > 0, v
             bins.append(inds[0][0])
         return tuple(bins)
 

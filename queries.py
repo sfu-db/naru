@@ -5,7 +5,10 @@ import csv
 DATA_PATH = '/var/tmp/cardDB/data'
 
 def ParseInteger(lrange, rrange):
-    assert lrange != 'MAX' and rrange != 'MIN'
+    # TODO
+    if lrange == 'MAX' or rrange == 'MIN':
+        return None
+    assert lrange != 'MAX' and rrange != 'MIN', (lrange, rrange)
     if lrange == 'MIN' and rrange == 'MAX':
         return None
     elif lrange == 'MIN':
@@ -16,7 +19,7 @@ def ParseInteger(lrange, rrange):
         return '=', int(float(lrange))
     lrange = int(float(lrange))
     rrange = int(float(rrange))
-    assert lrange < rrange
+    assert lrange < rrange, (lrange, rrange)
     return '[]', (lrange, rrange)
 
 def LoadForestQueries(filename='query'):

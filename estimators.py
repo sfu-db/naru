@@ -120,6 +120,8 @@ def QueryToPredicate(columns, operators, vals, wrap_as_string_cols=None):
         for c, o, v in zip(columns, operators, v_s)
     ]
     s = ' and '.join(preds)
+    if len(s) == 0:
+        return ''
     return ' where ' + s
 
 
@@ -365,6 +367,11 @@ class ProgressiveSampling(CardEst):
                     else:
                         logits = self.model.forward_with_encoded_input(inp)
 
+        # deal with no predicates or one predicate
+        if len(masked_probs) == 0:
+            return 1
+        elif len(masked_probs) == 1:
+            return masked_probs[0].mean().item()
         # Doing this convoluted scheme because m_p[0] is a scalar, and
         # we want the corret shape to broadcast.
         p = masked_probs[1]
@@ -541,7 +548,7 @@ class Oracle(CardEst):
                 bools = inds
             else:
                 bools &= inds
-        c = bools.sum()
+        c = bools.sum() if bools is not None else self.table.cardinality
         self.OnEnd()
         if return_masks:
             return bools
@@ -630,7 +637,7 @@ class Sampling(CardEst):
 
 class Postgres(CardEst):
 
-    def __init__(self, database, relation, port=None):
+    def __init__(self, database, relation, port=None, version=None, configs={}):
         """Postgres estimator (i.e., EXPLAIN).  Must have the PG server live.
         E.g.,
             def MakeEstimators():
@@ -644,20 +651,37 @@ class Postgres(CardEst):
 
         super(Postgres, self).__init__()
 
-        self.name = 'postgres'
+        self.name = 'postgres' if version is None else 'postgres-{}'.format(version)
 
         self.conn = psycopg2.connect(database=database, port=port, user='card', password='card', host='localhost')
         self.conn.autocommit = True
         self.cursor = self.conn.cursor()
-
-        self.cursor.execute('analyze ' + relation + ';')
-        self.conn.commit()
-
         self.database = database
         self.relation = relation
 
+        self.__set_variables(configs)
+
+        self.cursor.execute('select setseed(0.1234);')
+        self.conn.commit()
+        #  self.cursor.execute('select random();')
+        #  res = self.cursor.fetchall()
+        #  print('======', res)
+        self.cursor.execute('analyze ' + relation + ';')
+        self.conn.commit()
+
+
+    def __set_variables(self, configs):
+        for v in configs:
+            self.cursor.execute('set {} to {};'.format(v, configs[v]))
+        self.conn.commit()
+
+        #  for v in configs:
+        #      self.cursor.execute('show {};'.format(v))
+        #      res = self.cursor.fetchall()
+        #      print(v, res)
+
     def __str__(self):
-        return 'postgres'
+        return self.name
 
     def Query(self, columns, operators, vals):
         assert len(columns) == len(operators) == len(vals)
@@ -668,7 +692,7 @@ class Postgres(CardEst):
         self.OnStart()
         self.cursor.execute(query_s)
         res = self.cursor.fetchall()
-        #  print(res)
+        print(res[0][0][0]['Plan']['Plan Rows'])
         result = res[0][0][0]['Plan']['Plan Rows']
         self.OnEnd()
         return result
@@ -751,7 +775,9 @@ class BayesianNetwork(CardEst):
     def apply_discrete_mapping_to_value(self, value, col_id, discrete_mapping):
         if col_id not in discrete_mapping:
             return value
-        return discrete_mapping[col_id](value)
+        if type(value) is not tuple:
+            return discrete_mapping[col_id](value)
+        return tuple(discrete_mapping[col_id](v) for v in value)
 
     def __init__(self,
                  dataset,
