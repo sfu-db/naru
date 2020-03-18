@@ -174,14 +174,10 @@ def MakeTable():
 
 
 def ErrorMetric(est_card, card):
-    if card == 0 and est_card != 0:
-        return est_card
-    if card != 0 and est_card == 0:
-        return card
-    if card == 0 and est_card == 0:
-        return 1.0
-    return max(est_card / card, card / est_card)
-
+    if est_card > card:
+        return (est_card + 1) / (card + 1)
+    else:
+        return (card + 1) / (est_card + 1)
 
 def SampleTupleThenRandom(all_cols,
                           num_filters,

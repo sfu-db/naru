@@ -198,7 +198,7 @@ class CsvTable(Table):
         df = pd.read_csv(filename, usecols=cols, **kwargs)
         if cols is not None:
             df = df[cols]
-        print('done, took {:.1f}s'.format(time.time() - s))
+        print('done, took {:.1f}s, in memory size: {:.2f}MB (if use float32)'.format(time.time() - s, df.values.size * 4 / 1024 / 1024))
         return df
 
     def _build_columns(self, data, cols, type_casts, pg_cols):

@@ -30,7 +30,7 @@ def LoadForest(filename='num.csv'):
 
     # all data are integers, not need to cast type
     type_casts = {}
-    return common.CsvTable('Forest', csv_file, cols, type_casts)
+    return common.CsvTable('Forest', csv_file, cols, type_casts, pg_name='forest_num')
 
 if __name__ == '__main__':
     table = LoadForest()

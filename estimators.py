@@ -625,7 +625,8 @@ class Sampling(CardEst):
         assert len(columns) == len(operators) == len(vals)
         self.OnStart()
 
-        qualifying_tuples = []
+        # start with all tuples are qualified (deal with no predicate situation)
+        qualifying_tuples = [[True]*self.num_samples]
         for col, op, val in zip(columns, operators, vals):
             qualifying_tuples.append(OPS[op](self.tuples[col.name], val))
         s = np.all(qualifying_tuples, axis=0).sum()
@@ -1426,29 +1427,34 @@ class MaxDiffHistogram(CardEst):
         return distinct_val_covered * partition.density
 
     def Query(self, columns, operators, vals):
+        assert len(columns) == len(operators) == len(vals)
         self.OnStart()
         # map<cid, set(pids)>
-        column_set_map = {}
-        for c, o, v in zip(columns, operators, vals):
-            if not c.data.dtype == 'int64':
-                v = c.ValToBin(v)
-            self._populate_column_set_map(c, o, v, column_set_map)
-        # compute the set of pids that's relevant to this query
-        relevant_pids = set()
-        first = True
-        for cid in column_set_map:
-            if first:
-                relevant_pids = column_set_map[cid]
-                first = False
-            else:
-                relevant_pids = relevant_pids.intersection(column_set_map[cid])
+        # return all rows if no predicate
         total_card = 0
-        # for each pid, check full or partial coverage
-        # if full coverage, just add the full count
-        # otherwise, estimate the partial sum with uniform spread assumption
-        for pid in relevant_pids:
-            total_card += self._estimate_cardinality_per_partition(
-                self.partitions[pid], columns, operators, vals)
+        if len(vals) == 0:
+            total_card = self.table.cardinality
+        else:
+            column_set_map = {}
+            for c, o, v in zip(columns, operators, vals):
+                if not c.data.dtype == 'int64':
+                    v = c.ValToBin(v)
+                self._populate_column_set_map(c, o, v, column_set_map)
+            # compute the set of pids that's relevant to this query
+            relevant_pids = set()
+            first = True
+            for cid in column_set_map:
+                if first:
+                    relevant_pids = column_set_map[cid]
+                    first = False
+                else:
+                    relevant_pids = relevant_pids.intersection(column_set_map[cid])
+            # for each pid, check full or partial coverage
+            # if full coverage, just add the full count
+            # otherwise, estimate the partial sum with uniform spread assumption
+            for pid in relevant_pids:
+                total_card += self._estimate_cardinality_per_partition(
+                    self.partitions[pid], columns, operators, vals)
         self.OnEnd()
         return total_card
 
