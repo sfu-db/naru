@@ -1,0 +1,13 @@
+python train_model.py --dataset=forest --epochs=20 --bs=2048 --residual --layers=4 --fc-hiddens=64 --direct-io --column-masking --input-encoding=embed --output-encoding=embed --embed-size=2
+python eval_model.py --dataset=forest --query=query_test --glob='forest-0.23MB*.pt' --residual --layers=4 --fc-hiddens=64 --direct-io --column-masking --input-encoding=embed --output-encoding=embed --embed-size=2 --err-csv=naru0.23.qtest.csv
+python eval_model.py --dataset=forest --query=query_test --err-csv=sample0.01.qtest.csv --run-sampling
+python eval_model.py --dataset=forest --query=query_test --err-csv=postgres.qtest.csv --run-postgres
+python eval_model.py --dataset=forest --query=query_test --run-maxdiff --maxdiff-limit=5 --err-csv=maxdiff5-0.23.qtest.csv
+
+
+# History commands
+python train_model.py --dataset=forest --epochs=20 --bs=2048 --residual --layers=2 --fc-hiddens=16 --direct-io --column-masking --input-encoding=embed --output-encoding=embed --embed-size=2
+python eval_model.py --dataset=forest --query=q2000 --glob='forest-0.12MB*.pt' --residual --layers=2 --fc-hiddens=16 --direct-io --column-masking --input-encoding=embed --output-encoding=embed --embed-size=2 --err-csv=naru0.12.q2000.csv
+python eval_model.py --dataset=forest --query=q2000 --err-csv=sample0.01.q2000.csv --run-sampling
+python eval_model.py --dataset=forest --query=q2000 --run-maxdiff --maxdiff-limit=3 --err-csv=maxdiff0.13.q2000.csv
+python eval_model.py --dataset=forest --query=q20k --err-csv=postgres.q20k.csv --run-postgres
