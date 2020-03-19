@@ -1369,7 +1369,7 @@ class MaxDiffHistogram(CardEst):
             insert_index = bisect.bisect(self.column_bound_index[cid]['l'], upper_v)
             for i in range(insert_index):
                 if self.column_bound_index[cid]['l'][i] == upper_v:
-                    for pid in self.column_bound_map[cid]['l'][v]:
+                    for pid in self.column_bound_map[cid]['l'][upper_v]:
                         if self.partitions[pid].boundaries[cid][2]:
                             # add only when the lower bound is inclusive
                             lower_bound_set.add(pid)
